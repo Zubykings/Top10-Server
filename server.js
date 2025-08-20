@@ -80,6 +80,20 @@ const sanitizeInput = (input) => {
   });
 };
 
+// Serve robots.txt
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain");
+  res.send(
+    `
+User-agent: Googlebot
+Allow: /api/page
+Disallow: /admin/
+User-agent: *
+Disallow: /
+  `.trim()
+  );
+});
+
 // Page Routing Endpoint
 app.get("/api/page", (req, res) => {
   console.log("Received /api/page request with query:", req.query); // Debug log
