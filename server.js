@@ -45,20 +45,31 @@ const db = new sqlite3.Database("./database.db", (err) => {
   }
 });
 
-// Middleware
-app.use(
-  cors({
-    origin: process.env.ALLOWED_ORIGINS
-      ? process.env.ALLOWED_ORIGINS.split(",")
-      : [
-          "http://localhost:5173",
-          "https://www.top10enterprise.com",
-          "https://api.top10enterprise.com",
-        ],
-    methods: ["GET", "POST", "OPTIONS"],
-    allowedHeaders: ["Content-Type"],
-  })
-);
+// Custom CORS middleware
+app.use((req, res, next) => {
+  const allowedOrigins = process.env.ALLOWED_ORIGINS
+    ? process.env.ALLOWED_ORIGINS.split(",")
+    : [
+        "http://localhost:5173",
+        "https://www.top10enterprise.com",
+        "https://api.top10enterprise.com",
+      ];
+  const origin = req.headers.origin;
+
+  if (
+    allowedOrigins.includes(origin) ||
+    req.headers["user-agent"]?.includes("Googlebot")
+  ) {
+    res.header("Access-Control-Allow-Origin", origin || "*");
+    res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+    res.header("Access-Control-Allow-Headers", "Content-Type");
+  }
+
+  if (req.method === "OPTIONS") {
+    return res.status(200).end();
+  }
+  next();
+});
 app.use(express.json());
 
 // Nodemailer setup for Hostinger Email
