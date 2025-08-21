@@ -295,7 +295,7 @@ const keepAlive = () => {
       console.error("Keep-alive error:", err.message);
     });
 };
-setInterval(keepAlive, 600000); // 10 minutes
+setInterval(keepAlive, 300000); // 5 minutes
 
 // Start server
 app.listen(port, () => {
