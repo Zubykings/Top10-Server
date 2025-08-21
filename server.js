@@ -4,6 +4,7 @@ const nodemailer = require("nodemailer");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const sanitizeHtml = require("sanitize-html");
+const http = require("http"); // Add for self-ping
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -17,36 +18,37 @@ const db = new sqlite3.Database("./database.db", (err) => {
     console.error("Error opening database:", err.message);
   } else {
     db.run(`
-      CREATE TABLE IF NOT EXISTS contacts (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        email TEXT,
-        message TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+           CREATE TABLE IF NOT EXISTS contacts (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             name TEXT,
+             email TEXT,
+             message TEXT,
+             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+           )
+         `);
     db.run(`
-      CREATE TABLE IF NOT EXISTS subscriptions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        email TEXT UNIQUE,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+           CREATE TABLE IF NOT EXISTS subscriptions (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             email TEXT UNIQUE,
+             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+           )
+         `);
     db.run(`
-      CREATE TABLE IF NOT EXISTS inquiries (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT,
-        email TEXT,
-        product TEXT,
-        message TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+           CREATE TABLE IF NOT EXISTS inquiries (
+             id INTEGER PRIMARY KEY AUTOINCREMENT,
+             name TEXT,
+             email TEXT,
+             product TEXT,
+             message TEXT,
+             created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+           )
+         `);
   }
 });
 
-// Custom CORS middleware
+// Custom CORS middleware (enhanced for Googlebot and frontend)
 app.use((req, res, next) => {
+  const origin = req.headers.origin;
   const allowedOrigins = process.env.ALLOWED_ORIGINS
     ? process.env.ALLOWED_ORIGINS.split(",")
     : [
@@ -54,15 +56,16 @@ app.use((req, res, next) => {
         "https://www.top10enterprise.com",
         "https://api.top10enterprise.com",
       ];
-  const origin = req.headers.origin;
 
   if (
     allowedOrigins.includes(origin) ||
-    req.headers["user-agent"]?.includes("Googlebot")
+    req.headers["user-agent"]?.includes("Googlebot") ||
+    !origin
   ) {
     res.header("Access-Control-Allow-Origin", origin || "*");
     res.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
     res.header("Access-Control-Allow-Headers", "Content-Type");
+    res.header("Access-Control-Allow-Credentials", "true");
   }
 
   if (req.method === "OPTIONS") {
@@ -70,6 +73,7 @@ app.use((req, res, next) => {
   }
   next();
 });
+
 app.use(express.json());
 
 // Nodemailer setup for Hostinger Email
@@ -91,17 +95,17 @@ const sanitizeInput = (input) => {
   });
 };
 
-// Serve robots.txt
+// Serve robots.txt first (to avoid catch-all)
 app.get("/robots.txt", (req, res) => {
   res.type("text/plain");
   res.send(
     `
-User-agent: Googlebot
-Allow: /api/page
-Disallow: /admin/
-User-agent: *
-Disallow: /
-  `.trim()
+     User-agent: Googlebot
+     Allow: /api/page
+     Disallow: /admin/
+     User-agent: *
+     Disallow: /
+       `.trim()
   );
 });
 
@@ -277,7 +281,18 @@ app.use((req, res) => {
   res.status(404).json({ error: "Route not found" });
 });
 
-// Start server
-app.listen(port, () => {
-  console.log(`Server running on port ${port}`);
-});
+// Self-ping to keep service active (every 10 minutes)
+const keepAlive = () => {
+  const options = {
+    host: "api.top10enterprise.com", // Your API host
+    path: "/api/page?path=/contact", // A valid endpoint to ping
+  };
+  http
+    .get(options, (res) => {
+      console.log(`Keep-alive ping: ${res.statusCode}`);
+    })
+    .on("error", (err) => {
+      console.error("Keep-alive error:", err.message);
+    });
+};
+setInterval(keepAlive, 600000); // 10 minutes
