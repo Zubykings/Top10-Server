@@ -3,3 +3,5 @@ node_modules/
 echo "node_modules/" > .gitignore
 echo "package-lock.json" >> .gitignore
 echo ".env" >> .gitignore
+test-email.js
+back-up-server.js
