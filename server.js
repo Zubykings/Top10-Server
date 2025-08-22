@@ -52,7 +52,7 @@ app.use(
       ? process.env.ALLOWED_ORIGINS.split(",")
       : [
           "http://localhost:5173",
-          "https://www.top10enterprise.com",
+          "https://top10enterprise.com",
           "https://api.top10enterprise.com",
         ],
     methods: ["GET", "POST", "OPTIONS"],
